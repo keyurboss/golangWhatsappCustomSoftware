@@ -1,0 +1,8 @@
+{
+  "useTextMessage":true,
+  "appendMessageToImage": false,
+  "readMessageFromCsv": false,
+  "message": "This Is Demo MEssage",
+  "addMinimumDelayInSecondsAfterSuccessfullMesssage": 3,
+  "basePathForAssets":""
+}
