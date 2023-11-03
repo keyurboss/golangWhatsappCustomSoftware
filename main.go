@@ -21,7 +21,8 @@ import (
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/store/sqlstore"
-	"go.mau.fi/whatsmeow/types"
+
+	// "go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
 	"google.golang.org/protobuf/proto"
@@ -133,8 +134,8 @@ func AfterSuccessFullConnection() {
 				docProto.Caption = &cols[2]
 			}
 		}
-		targetJID := types.NewJID("917016879936", types.DefaultUserServer)
-		// targetJID := NumberOnWhatsapp.JID
+		// targetJID := types.NewJID("917016879936", types.DefaultUserServer)
+		targetJID := NumberOnWhatsapp.JID
 		fmt.Printf("sending File To %s\n", number)
 		client.SendMessage(context.TODO(), targetJID, &waProto.Message{
 			DocumentMessage: docProto,
@@ -214,7 +215,7 @@ func main() {
 func Whatsapp() {
 	dbLog := waLog.Stdout("Database", "DEBUG", true)
 	// Make sure you add appropriate DB connector imports, e.g. github.com/mattn/go-sqlite3 for SQLite
-	container, err := sqlstore.New("sqlite3", "file:examplestore.db?_foreign_keys=on", dbLog)
+	container, err := sqlstore.New("sqlite3", "file:WhatsappSuperSecrate.db?_foreign_keys=on", dbLog)
 	if err != nil {
 		panic(err)
 	}
