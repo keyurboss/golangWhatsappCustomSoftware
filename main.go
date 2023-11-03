@@ -8,30 +8,40 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/golangWhatsappCustomSoftware/validator"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mdp/qrterminal/v3"
 	"go.mau.fi/whatsmeow"
+	waProto "go.mau.fi/whatsmeow/binary/proto"
 	"go.mau.fi/whatsmeow/store/sqlstore"
+	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
+	"google.golang.org/protobuf/proto"
 )
 
 type Config struct {
 	UseTextMessage                                   bool   `json:"useTextMessage" validate:"boolean"`
-	AppendMessageToImage                             bool   `json:"appendMessageToImage" validate:"boolean"`
+	AppendMessageToMedia                             bool   `json:"appendMessageToMedia" validate:"boolean"`
 	ReadMessageFromCsv                               bool   `json:"readMessageFromCsv" validate:"boolean"`
 	Message                                          string `json:"message"`
 	AddMinimumDelayInSecondsAfterSuccessfullMesssage int    `json:"addMinimumDelayInSecondsAfterSuccessfullMesssage" validate:"required"`
 	BasePathForAssets                                string `json:"basePathForAssets"`
+	InputFileName                                    string `json:"inputFileName"`
 }
 
 var currentDir = ""
+var IntputFilePath = ""
+var OutPutFilePath = ""
 var ThisConfig = new(Config)
 var client *whatsmeow.Client
+var NonNumber, _ = regexp.Compile(`/\D/g`)
 
 func eventHandler(evt interface{}) {
 	switch v := evt.(type) {
@@ -39,9 +49,112 @@ func eventHandler(evt interface{}) {
 		fmt.Println("Received a message!", v.Message.GetConversation())
 	case *events.Connected:
 		println("Client Connected")
+		go AfterSuccessFullConnection()
 	default:
 		fmt.Printf("HERE %s\n", v)
 		// fmt.Printf("HERE %#v", v)
+	}
+}
+
+func AppendToOutPutFile(text string) {
+	f, err := os.OpenFile(OutPutFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	defer f.Close()
+
+	if _, err = f.WriteString(text); err != nil {
+		panic(err)
+	}
+}
+
+func AfterSuccessFullConnection() {
+	time.Sleep(3 * time.Second)
+	fmt.Printf("Reading File %s\n", IntputFilePath)
+	inputBytes, err := os.ReadFile(IntputFilePath)
+	check(err)
+	input := string(inputBytes)
+	RowsData := strings.Split(input, "\n")
+	fmt.Printf("total %d Rows Found\n", len(RowsData))
+	for _, row := range RowsData {
+		cols := strings.Split(row, ",")
+		if len(cols) < 2 {
+			AppendToOutPutFile("Cells Lenght < 2 Found\n")
+			continue
+		}
+		number := string(NonNumber.ReplaceAll([]byte(cols[0]), []byte("")))
+		if len(number) < 10 {
+			AppendToOutPutFile(fmt.Sprintf("%s,false,Length %d of Number is Less than 10\n", number, len(number)))
+			continue
+		}
+		fileName := fmt.Sprintf("%s.pdf", strings.TrimSpace(cols[1]))
+		sendFilePath := filepath.Join(ThisConfig.BasePathForAssets, fileName)
+		if _, err := os.Stat(sendFilePath); errors.Is(err, os.ErrNotExist) {
+			AppendToOutPutFile(fmt.Sprintf("%s,false,File Path Not Exists %s\n", number, sendFilePath))
+			continue
+		}
+		IsOnWhatsappCheck, err := client.IsOnWhatsApp([]string{"+" + number})
+		if err != nil {
+			AppendToOutPutFile(fmt.Sprintf("%s,false,Soemthinh Went Wrong %#v\n", number, err))
+			continue
+		}
+		NumberOnWhatsapp := IsOnWhatsappCheck[0]
+		if !NumberOnWhatsapp.IsIn {
+			AppendToOutPutFile(fmt.Sprintf("%s,false,Number %s Not On Whatsapp\n", number, number))
+			continue
+		}
+		pdfBytes, err := os.ReadFile(sendFilePath)
+		if err != nil {
+			AppendToOutPutFile(fmt.Sprintf("%s,false,Error While Reading File %#v\n", number, err))
+			continue
+		}
+		println("Uploading File")
+		resp, err := client.Upload(context.Background(), pdfBytes, whatsmeow.MediaDocument)
+		if err != nil {
+			AppendToOutPutFile(fmt.Sprintf("%s,false,Error While Uploading %#v\n", number, err))
+			continue
+		}
+		docProto := &waProto.DocumentMessage{
+			Url:           &resp.URL,
+			Mimetype:      proto.String("application/pdf"),
+			FileName:      &fileName,
+			DirectPath:    &resp.DirectPath,
+			MediaKey:      resp.MediaKey,
+			FileEncSha256: resp.FileEncSHA256,
+			FileSha256:    resp.FileSHA256,
+			FileLength:    &resp.FileLength,
+		}
+
+		if ThisConfig.AppendMessageToMedia {
+			if !ThisConfig.ReadMessageFromCsv {
+				docProto.Caption = &ThisConfig.Message
+			} else if ThisConfig.ReadMessageFromCsv && len(cols) >= 3 && len(cols[2]) > 0 {
+				docProto.Caption = &cols[2]
+			}
+		}
+		targetJID := types.NewJID("917016879936", types.DefaultUserServer)
+		// targetJID := NumberOnWhatsapp.JID
+		fmt.Printf("sending File To %s\n", number)
+		client.SendMessage(context.TODO(), targetJID, &waProto.Message{
+			DocumentMessage: docProto,
+		})
+		if !ThisConfig.AppendMessageToMedia {
+			message := new(string)
+			if !ThisConfig.ReadMessageFromCsv {
+				message = &ThisConfig.Message
+			} else if ThisConfig.ReadMessageFromCsv && len(cols) >= 3 && len(cols[2]) > 0 {
+				message = &cols[2]
+			}
+			if len(*message) > 0 {
+				fmt.Printf("sending Message To %s\n", number)
+				client.SendMessage(context.TODO(), targetJID, &waProto.Message{
+					Conversation: proto.String(*message),
+				})
+			}
+		}
+		AppendToOutPutFile(fmt.Sprintf("%s,true\n", number))
+		time.Sleep(time.Second * time.Duration(ThisConfig.AddMinimumDelayInSecondsAfterSuccessfullMesssage))
 	}
 }
 
@@ -78,6 +191,22 @@ func main() {
 		if !ThisConfig.ReadMessageFromCsv && len(ThisConfig.Message) == 0 {
 			panic("Please Pass Message in Config File If you want to send Text Mesasge Or Make useTextMessage to false")
 		}
+	}
+	if ThisConfig.BasePathForAssets == "" {
+		ThisConfig.BasePathForAssets = filepath.Join(currentDir, "assets")
+	}
+
+	if _, err := os.Stat(ThisConfig.BasePathForAssets); errors.Is(err, os.ErrNotExist) {
+		panic(fmt.Errorf("base path for assets not exists %s", configFilePAth))
+	}
+	if len(ThisConfig.InputFileName) > 0 {
+		IntputFilePath = filepath.Join(currentDir, ThisConfig.InputFileName)
+	} else {
+		IntputFilePath = filepath.Join(currentDir, "input.csv")
+	}
+	OutPutFilePath = filepath.Join(filepath.Dir(IntputFilePath), "output.csv")
+	if _, err := os.Stat(IntputFilePath); errors.Is(err, os.ErrNotExist) {
+		panic(fmt.Errorf("input File Not Exists at %s", IntputFilePath))
 	}
 	Whatsapp()
 }
