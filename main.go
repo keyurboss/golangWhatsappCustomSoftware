@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -51,8 +52,7 @@ func eventHandler(evt interface{}) {
 		println("Client Connected")
 		go AfterSuccessFullConnection()
 	default:
-		fmt.Printf("HERE %s\n", v)
-		// fmt.Printf("HERE %#v", v)
+		fmt.Printf("Event Occured%s\n", reflect.TypeOf(v))
 	}
 }
 
