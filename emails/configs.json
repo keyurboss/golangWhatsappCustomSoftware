@@ -1,0 +1,18 @@
+{
+  "sendAttachment": true,
+  "readAttachmentFromCSV": true,
+  "fixedAttachmentName": false,
+  "basePathForAttachment": "",
+  "addDelayBetweenMails": 0,
+  "readSubjectFromCsv": false,
+  "emailSubject": "",
+  "readEmailTextFromCsv": false,
+  "isEmailBodyHTML": true,
+  "emailBody": "",
+  "inputFile": "",
+  "host": "",
+  "userName": "",
+  "port": 0,
+  "password": "",
+  "parallelEmails": 2
+}
