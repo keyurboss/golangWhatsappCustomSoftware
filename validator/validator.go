@@ -30,10 +30,11 @@ type (
 var Validator *XValidator
 
 func init() {
-	println("Registered")
+	println("Validator Init")
 	Validator = &XValidator{
 		validator: validator.New(),
 	}
+	Validator.validator.RegisterValidation("port", validatePort)
 }
 
 func (v XValidator) Validate(data interface{}) []ErrorResponse {
