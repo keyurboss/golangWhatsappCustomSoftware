@@ -29,17 +29,17 @@ import (
 )
 
 type Config struct {
-	UseTextMessage                                   bool   `json:"useTextMessage" validate:"boolean"`
-	AppendMessageToMedia                             bool   `json:"appendMessageToMedia" validate:"boolean"`
-	ReadMessageFromCsv                               bool   `json:"readMessageFromCsv" validate:"boolean"`
-	Message                                          string `json:"message"`
-	AddMinimumDelayInSecondsAfterSuccessfullMesssage int    `json:"addMinimumDelayInSecondsAfterSuccessfullMesssage" validate:"required"`
-	BasePathForAssets                                string `json:"basePathForAssets"`
-	InputFileName                                    string `json:"inputFileName"`
+	UseTextMessage                                 bool   `json:"useTextMessage" validate:"boolean"`
+	AppendMessageToMedia                           bool   `json:"appendMessageToMedia" validate:"boolean"`
+	ReadMessageFromCsv                             bool   `json:"readMessageFromCsv" validate:"boolean"`
+	Message                                        string `json:"message"`
+	AddMinimumDelayInSecondsAfterSuccessfulMessage int    `json:"addMinimumDelayInSecondsAfterSuccessfulMessage" validate:"required"`
+	BasePathForAssets                              string `json:"basePathForAssets"`
+	InputFileName                                  string `json:"inputFileName"`
 }
 
 var currentDir = ""
-var IntputFilePath = ""
+var InputFilePath = ""
 var OutPutFilePath = ""
 var ThisConfig = new(Config)
 var client *whatsmeow.Client
@@ -53,7 +53,7 @@ func eventHandler(evt interface{}) {
 		println("Client Connected")
 		go AfterSuccessFullConnection()
 	default:
-		fmt.Printf("Event Occured%s\n", reflect.TypeOf(v))
+		fmt.Printf("Event Occurred%s\n", reflect.TypeOf(v))
 	}
 }
 
@@ -72,8 +72,8 @@ func AppendToOutPutFile(text string) {
 
 func AfterSuccessFullConnection() {
 	time.Sleep(3 * time.Second)
-	fmt.Printf("Reading File %s\n", IntputFilePath)
-	inputBytes, err := os.ReadFile(IntputFilePath)
+	fmt.Printf("Reading File %s\n", InputFilePath)
+	inputBytes, err := os.ReadFile(InputFilePath)
 	check(err)
 	input := string(inputBytes)
 	RowsData := strings.Split(input, "\n")
@@ -81,7 +81,7 @@ func AfterSuccessFullConnection() {
 	for _, row := range RowsData {
 		cols := strings.Split(row, ",")
 		if len(cols) < 2 {
-			AppendToOutPutFile("Cells Lenght < 2 Found\n")
+			AppendToOutPutFile("Cells Length < 2 Found\n")
 			continue
 		}
 		number := string(NonNumber.ReplaceAll([]byte(cols[0]), []byte("")))
@@ -97,7 +97,7 @@ func AfterSuccessFullConnection() {
 		}
 		IsOnWhatsappCheck, err := client.IsOnWhatsApp([]string{"+" + number})
 		if err != nil {
-			AppendToOutPutFile(fmt.Sprintf("%s,false,Soemthinh Went Wrong %#v\n", number, err))
+			AppendToOutPutFile(fmt.Sprintf("%s,false,Something Went Wrong %#v\n", number, err))
 			continue
 		}
 		NumberOnWhatsapp := IsOnWhatsappCheck[0]
@@ -155,7 +155,7 @@ func AfterSuccessFullConnection() {
 			}
 		}
 		AppendToOutPutFile(fmt.Sprintf("%s,true\n", number))
-		time.Sleep(time.Second * time.Duration(ThisConfig.AddMinimumDelayInSecondsAfterSuccessfullMesssage))
+		time.Sleep(time.Second * time.Duration(ThisConfig.AddMinimumDelayInSecondsAfterSuccessfulMessage))
 	}
 }
 
@@ -169,9 +169,9 @@ func main() {
 	// using the function
 	fmt.Println(len(os.Args), os.Args)
 	if slices.Contains(os.Args, "--dev") {
-		curren, err := os.Getwd()
+		current, err := os.Getwd()
 		check(err)
-		currentDir = curren
+		currentDir = current
 	} else {
 		exePath, err := os.Executable()
 		currentDir = filepath.Dir(exePath)
@@ -190,7 +190,7 @@ func main() {
 	}
 	if ThisConfig.UseTextMessage {
 		if !ThisConfig.ReadMessageFromCsv && len(ThisConfig.Message) == 0 {
-			panic("Please Pass Message in Config File If you want to send Text Mesasge Or Make useTextMessage to false")
+			panic("Please Pass Message in Config File If you want to send Text Message Or Make useTextMessage to false")
 		}
 	}
 	if ThisConfig.BasePathForAssets == "" {
@@ -201,13 +201,13 @@ func main() {
 		panic(fmt.Errorf("base path for assets not exists %s", configFilePAth))
 	}
 	if len(ThisConfig.InputFileName) > 0 {
-		IntputFilePath = filepath.Join(currentDir, ThisConfig.InputFileName)
+		InputFilePath = filepath.Join(currentDir, ThisConfig.InputFileName)
 	} else {
-		IntputFilePath = filepath.Join(currentDir, "input.csv")
+		InputFilePath = filepath.Join(currentDir, "input.csv")
 	}
-	OutPutFilePath = filepath.Join(filepath.Dir(IntputFilePath), "output.csv")
-	if _, err := os.Stat(IntputFilePath); errors.Is(err, os.ErrNotExist) {
-		panic(fmt.Errorf("input File Not Exists at %s", IntputFilePath))
+	OutPutFilePath = filepath.Join(filepath.Dir(InputFilePath), "output.csv")
+	if _, err := os.Stat(InputFilePath); errors.Is(err, os.ErrNotExist) {
+		panic(fmt.Errorf("input File Not Exists at %s", InputFilePath))
 	}
 	Whatsapp()
 }
@@ -215,7 +215,7 @@ func main() {
 func Whatsapp() {
 	dbLog := waLog.Stdout("Database", "DEBUG", true)
 	// Make sure you add appropriate DB connector imports, e.g. github.com/mattn/go-sqlite3 for SQLite
-	container, err := sqlstore.New("sqlite3", "file:WhatsappSuperSecrate.db?_foreign_keys=on", dbLog)
+	container, err := sqlstore.New("sqlite3", "file:WhatsappSuperSecrete.db?_foreign_keys=on", dbLog)
 	if err != nil {
 		panic(err)
 	}
@@ -237,9 +237,6 @@ func Whatsapp() {
 		}
 		for evt := range qrChan {
 			if evt.Event == "code" {
-				// Render the QR code here
-				// or just manually `echo 2@... | qrencode -t ansiutf8` in a terminal
-
 				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
 				fmt.Println("QR code:", evt.Code)
 			} else {
