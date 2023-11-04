@@ -1,6 +1,6 @@
 {
   "sendAttachment": true,
-  "readAttachmentFromCSV": false,
+  "readAttachmentFromCSV": true,
   "fixedAttachmentName": "demo.pdf",
   "basePathForAttachment": "/Users/keyurshah/Projects/Whatsapp/golangWhatsappCustomSoftware/emails/assets",
   "addDelayBetweenMails": 0,
@@ -8,13 +8,12 @@
   "emailSubject": "DEMO PDF",
   "readEmailTextFromCsv": false,
   "isEmailBodyHTML": true,
-  "emailBody": "DEMO BODY",
+  "emailBody": "<b>DEMO BODY</b>\n",
   "inputFile": "input.csv",
   "host": "smtp.gmail.com",
-  "fromEmail":"keyurshah3939@gmail.com",
-  "fromName":"Keyur shah",
+  "fromEmail": "keyurshah3939@gmail.com",
+  "fromName": "Keyur shah",
   "userName": "keyurshah3939@gmail.com",
   "port": 587,
-  "password": "",
-  "parallelEmails": 2
+  "password": ""
 }
