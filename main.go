@@ -45,6 +45,8 @@ var ThisConfig = new(Config)
 var client *whatsmeow.Client
 var NonNumber, _ = regexp.Compile(`/\D/g`)
 
+var LoopStarted = false
+
 func eventHandler(evt interface{}) {
 	switch v := evt.(type) {
 	case *events.Message:
@@ -71,6 +73,11 @@ func AppendToOutPutFile(text string) {
 }
 
 func AfterSuccessFullConnection() {
+	if LoopStarted {
+		println("Tried to Start Loop Again")
+		return
+	}
+	LoopStarted = true
 	time.Sleep(3 * time.Second)
 	fmt.Printf("Reading File %s\n", InputFilePath)
 	inputBytes, err := os.ReadFile(InputFilePath)
@@ -157,6 +164,8 @@ func AfterSuccessFullConnection() {
 		AppendToOutPutFile(fmt.Sprintf("%s,true\n", number))
 		time.Sleep(time.Second * time.Duration(ThisConfig.AddMinimumDelayInSecondsAfterSuccessfulMessage))
 	}
+
+	println("It is Completed")
 }
 
 func check(e error) {
