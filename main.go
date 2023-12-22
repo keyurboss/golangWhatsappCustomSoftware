@@ -86,83 +86,93 @@ func AfterSuccessFullConnection() {
 	RowsData := strings.Split(input, "\n")
 	fmt.Printf("total %d Rows Found\n", len(RowsData))
 	for _, row := range RowsData {
-		cols := strings.Split(row, ",")
-		if len(cols) < 2 {
-			AppendToOutPutFile("Cells Length < 2 Found\n")
-			continue
-		}
-		number := string(NonNumber.ReplaceAll([]byte(cols[0]), []byte("")))
-		if len(number) < 10 {
-			AppendToOutPutFile(fmt.Sprintf("%s,false,Length %d of Number is Less than 10\n", number, len(number)))
-			continue
-		}
-		fileName := fmt.Sprintf("%s.pdf", strings.TrimSpace(cols[1]))
-		sendFilePath := filepath.Join(ThisConfig.BasePathForAssets, fileName)
-		if _, err := os.Stat(sendFilePath); errors.Is(err, os.ErrNotExist) {
-			AppendToOutPutFile(fmt.Sprintf("%s,false,File Path Not Exists %s\n", number, sendFilePath))
-			continue
-		}
-		IsOnWhatsappCheck, err := client.IsOnWhatsApp([]string{"+" + number})
-		if err != nil {
-			AppendToOutPutFile(fmt.Sprintf("%s,false,Something Went Wrong %#v\n", number, err))
-			continue
-		}
-		NumberOnWhatsapp := IsOnWhatsappCheck[0]
-		if !NumberOnWhatsapp.IsIn {
-			AppendToOutPutFile(fmt.Sprintf("%s,false,Number %s Not On Whatsapp\n", number, number))
-			continue
-		}
-		pdfBytes, err := os.ReadFile(sendFilePath)
-		if err != nil {
-			AppendToOutPutFile(fmt.Sprintf("%s,false,Error While Reading File %#v\n", number, err))
-			continue
-		}
-		println("Uploading File")
-		resp, err := client.Upload(context.Background(), pdfBytes, whatsmeow.MediaDocument)
-		if err != nil {
-			AppendToOutPutFile(fmt.Sprintf("%s,false,Error While Uploading %#v\n", number, err))
-			continue
-		}
-		docProto := &waProto.DocumentMessage{
-			Url:           &resp.URL,
-			Mimetype:      proto.String("application/pdf"),
-			FileName:      &fileName,
-			DirectPath:    &resp.DirectPath,
-			MediaKey:      resp.MediaKey,
-			FileEncSha256: resp.FileEncSHA256,
-			FileSha256:    resp.FileSHA256,
-			FileLength:    &resp.FileLength,
-		}
+		func() {
+			cols := strings.Split(row, ",")
+			if len(cols) < 2 {
+				AppendToOutPutFile("Cells Length < 2 Found\n")
+				return
+			}
+			number := string(NonNumber.ReplaceAll([]byte(cols[0]), []byte("")))
+			if len(number) < 10 {
+				AppendToOutPutFile(fmt.Sprintf("%s,false,Length %d of Number is Less than 10\n", number, len(number)))
+				return
+			}
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Println("panic occured: ", r)
+					AppendToOutPutFile(fmt.Sprintf("%s,false,Something Went Wrong %#v\n", number, r))
 
-		if ThisConfig.AppendMessageToMedia {
-			if !ThisConfig.ReadMessageFromCsv {
-				docProto.Caption = &ThisConfig.Message
-			} else if ThisConfig.ReadMessageFromCsv && len(cols) >= 3 && len(cols[2]) > 0 {
-				docProto.Caption = &cols[2]
+				}
+			}()
+			fileName := fmt.Sprintf("%s.pdf", strings.TrimSpace(cols[1]))
+			sendFilePath := filepath.Join(ThisConfig.BasePathForAssets, fileName)
+			if _, err := os.Stat(sendFilePath); errors.Is(err, os.ErrNotExist) {
+				AppendToOutPutFile(fmt.Sprintf("%s,false,File Path Not Exists %s\n", number, sendFilePath))
+				return
 			}
-		}
-		// targetJID := types.NewJID("917016879936", types.DefaultUserServer)
-		targetJID := NumberOnWhatsapp.JID
-		fmt.Printf("sending File To %s\n", number)
-		client.SendMessage(context.TODO(), targetJID, &waProto.Message{
-			DocumentMessage: docProto,
-		})
-		if !ThisConfig.AppendMessageToMedia {
-			message := new(string)
-			if !ThisConfig.ReadMessageFromCsv {
-				message = &ThisConfig.Message
-			} else if ThisConfig.ReadMessageFromCsv && len(cols) >= 3 && len(cols[2]) > 0 {
-				message = &cols[2]
+			IsOnWhatsappCheck, err := client.IsOnWhatsApp([]string{"+" + number})
+			if err != nil {
+				AppendToOutPutFile(fmt.Sprintf("%s,false,Something Went Wrong %#v\n", number, err))
+				return
 			}
-			if len(*message) > 0 {
-				fmt.Printf("sending Message To %s\n", number)
-				client.SendMessage(context.TODO(), targetJID, &waProto.Message{
-					Conversation: proto.String(*message),
-				})
+			NumberOnWhatsapp := IsOnWhatsappCheck[0]
+			if !NumberOnWhatsapp.IsIn {
+				AppendToOutPutFile(fmt.Sprintf("%s,false,Number %s Not On Whatsapp\n", number, number))
+				return
 			}
-		}
-		AppendToOutPutFile(fmt.Sprintf("%s,true\n", number))
-		time.Sleep(time.Second * time.Duration(ThisConfig.AddMinimumDelayInSecondsAfterSuccessfulMessage))
+			pdfBytes, err := os.ReadFile(sendFilePath)
+			if err != nil {
+				AppendToOutPutFile(fmt.Sprintf("%s,false,Error While Reading File %#v\n", number, err))
+				return
+			}
+			println("Uploading File")
+			resp, err := client.Upload(context.Background(), pdfBytes, whatsmeow.MediaDocument)
+			if err != nil {
+				AppendToOutPutFile(fmt.Sprintf("%s,false,Error While Uploading %#v\n", number, err))
+				return
+			}
+			docProto := &waProto.DocumentMessage{
+				Url:           &resp.URL,
+				Mimetype:      proto.String("application/pdf"),
+				FileName:      &fileName,
+				DirectPath:    &resp.DirectPath,
+				MediaKey:      resp.MediaKey,
+				FileEncSha256: resp.FileEncSHA256,
+				FileSha256:    resp.FileSHA256,
+				FileLength:    &resp.FileLength,
+			}
+
+			if ThisConfig.AppendMessageToMedia {
+				if !ThisConfig.ReadMessageFromCsv {
+					docProto.Caption = &ThisConfig.Message
+				} else if ThisConfig.ReadMessageFromCsv && len(cols) >= 3 && len(cols[2]) > 0 {
+					docProto.Caption = &cols[2]
+				}
+			}
+			// targetJID := types.NewJID("917016879936", types.DefaultUserServer)
+			targetJID := NumberOnWhatsapp.JID
+			fmt.Printf("sending File To %s\n", number)
+			client.SendMessage(context.TODO(), targetJID, &waProto.Message{
+				DocumentMessage: docProto,
+			})
+			if !ThisConfig.AppendMessageToMedia {
+				message := new(string)
+				if !ThisConfig.ReadMessageFromCsv {
+					message = &ThisConfig.Message
+				} else if ThisConfig.ReadMessageFromCsv && len(cols) >= 3 && len(cols[2]) > 0 {
+					message = &cols[2]
+				}
+				if len(*message) > 0 {
+					fmt.Printf("sending Message To %s\n", number)
+					client.SendMessage(context.TODO(), targetJID, &waProto.Message{
+						Conversation: proto.String(*message),
+					})
+				}
+			}
+			AppendToOutPutFile(fmt.Sprintf("%s,true\n", number))
+			time.Sleep(time.Second * time.Duration(ThisConfig.AddMinimumDelayInSecondsAfterSuccessfulMessage))
+		}()
+
 	}
 
 	println("It is Completed")
