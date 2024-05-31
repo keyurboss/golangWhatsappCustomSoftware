@@ -1,9 +1,10 @@
 {
-  "useTextMessage":true,
-  "appendMessageToMedia": false,
+  "lic":"",
+  "useTextMessage":false,
+  "appendMessageToMedia": true,
   "readMessageFromCsv": false,
-  "message": "This Is Demo MEssage",
-  "addMinimumDelayInSecondsAfterSuccessfulMessage": 3,
-  "basePathForAssets":"/home/keyurboss/Projects/Whatsapp/golangWhatsappCustomSoftware/assets",
-  "inputFileName":""
+  "message": "DMEO MOMOMMOM \n sdasdasdasd \n",
+  "addMinimumDelayInSecondsAfterSuccessfulMessage": 6,
+  "basePathForAssets":"C:\\Users\\Keyur Shah\\Downloads",
+  "inputFileName":"content.csv"
 }
