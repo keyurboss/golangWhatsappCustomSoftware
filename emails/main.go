@@ -19,6 +19,7 @@ import (
 type Config struct {
 	SendAttachment        bool   `json:"sendAttachment" validate:"boolean"`
 	ReadAttachmentFromCSV bool   `json:"readAttachmentFromCSV" validate:"boolean"`
+	SendAttachmentInBody  bool   `json:"sendAttachmentInBody" validate:"boolean"`
 	FixedAttachmentName   string `json:"fixedAttachmentName"`
 	BasePathForAttachment string `json:"basePathForAttachment"`
 	AddDelayBetweenMails  int64  `json:"addDelayBetweenMails" validate:"min=0,max=10"`
@@ -157,13 +158,19 @@ func Emails() {
 			attacheMentName = strings.TrimSpace(cols[1])
 		}
 		email := gomail.NewMessage()
+		body := ThisConfig.EmailBody
 		if attacheMentName != "" {
-			attacheMentNamePath := filepath.Join(ThisConfig.BasePathForAttachment, attacheMentName)
-			if _, err := os.Stat(attacheMentNamePath); errors.Is(err, os.ErrNotExist) {
-				AppendToOutPutFile(fmt.Sprintf("%s,false,File Path Not Exists %s\n", address, attacheMentNamePath))
-				continue
+			if ThisConfig.SendAttachmentInBody {
+				body = strings.Replace(body, "@@image@@", attacheMentName, 1)
+			} else {
+
+				attacheMentNamePath := filepath.Join(ThisConfig.BasePathForAttachment, attacheMentName)
+				if _, err := os.Stat(attacheMentNamePath); errors.Is(err, os.ErrNotExist) {
+					AppendToOutPutFile(fmt.Sprintf("%s,false,File Path Not Exists %s\n", address, attacheMentNamePath))
+					continue
+				}
+				email.Attach(attacheMentNamePath)
 			}
-			email.Attach(attacheMentNamePath)
 		}
 		emailSubject := ThisConfig.EmailSubject
 		if ThisConfig.ReadSubjectFromCsv {
@@ -178,7 +185,7 @@ func Emails() {
 			"To":      {address},
 			"Subject": {emailSubject},
 		})
-		emailBody := ThisConfig.EmailBody
+		emailBody := body
 		if ThisConfig.ReadEmailTextFromCsv {
 			emailBody = strings.TrimSpace(cols[3])
 		}
